@@ -1,0 +1,1 @@
+(R -e "shiny::runApp('rjh_light_app.R', port=7703)" | tee /var/logs/shinyapp_rjh_lightapp.log) &
