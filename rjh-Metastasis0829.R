@@ -10,14 +10,17 @@ library(DT)
 # library(d3heatmap)
 library(R.utils)
 library(RColorBrewer)
-source("R/server_utils.R", local = TRUE)
-source("R/ui_utils.R", local = TRUE)
+# source("R/server_utils.R", local = TRUE)## zhou
+# source("R/ui_utils.R", local = TRUE)## zhou
+source("server_utils0829.R", local = TRUE) ###mxy
+source("ui_utils.R", local = TRUE)  ###mxy
 
 # constants & input files
 USUAL_OPTIONS <- c('low', 'exclude', 'high')
 DISTANCE_OPTIONS <- c('close', 'exclude', 'far') 
-TOTAL_OBJECTIVES <- 10 
-DATA <- read_csv('data/data_res_protein.csv')#, quoted_na = FALSE)
+#TOTAL_OBJECTIVES <- 10 
+#DATA <- read_csv('data/data_res_protein.csv')#, quoted_na = FALSE) ## zhou
+DATA <- read_delim('data_res_protein.csv')#, quoted_na = FALSE) ## mxy
 #HEATMAP_DATA <- read_tsv('data/heatmap_data.tsv')
 # NLP <- read_csv('data/nlp_allowed.csv')
 # NLP <- read_csv('data/data_res_protein.csv'), quoted_na = FALSE)
@@ -26,7 +29,7 @@ DATA <- read_csv('data/data_res_protein.csv')#, quoted_na = FALSE)
 non_features <- c("id","name","type","exp_name")
 rna_features <- c("m1a_hit","m5c_hit","m6a_hit","m7g_hit","full_hit","m1a_Regulation","m5c_Regulation","m6a_Regulation","m7g_Regulation","regulation","logFC","PValue","FDR","degree.x","closeness_centrality.x","betweenness_centrality.x","eigenvector_centrality.x","page_rank_score.x","clustering_coefficient.x","DNB","m1a_Foldchange","m5c_Foldchange","m6a_Foldchange","m7g_Foldchange")
 dna_features <- c("CCF_diff","CCF_abs_diff","CCF_p_ttest","CCF_p_wilcoxon","divergene")
-protein_features <- c("protein_degree","protein_closeness_centrality","protein_betweenness_centrality","protein_eigenvector_centrality","protein_page_rank_score","protein_clustering_coefficient","protein_m1.mean","protein_m0.mean","protein_Diff","protein_abs_Diff","protein_pvalue")
+protein_features <- c("protein_degree","protein_closeness_centrality","protein_betweenness_centrality","protein_eigenvector_centrality","protein_page_rank_score","protein_m1.mean","protein_m0.mean","protein_Diff","protein_abs_Diff","protein_pvalue")
 literature_features <- c("lit_meta","lit_meta_colon")
 ###
 TOTAL_OBJECTIVES <- length(rna_features) + length(dna_features) + length(protein_features) + length(literature_features)
@@ -212,11 +215,26 @@ server <- function(input, output, session) {
             
       data.prt <- 
         # any_filter(DATA, flt_d = input$flt_1) %>%
+        
+        ###### zhou
+        # DATA %>%
+        # mutate_at(
+        #   vars(c('m1a_Regulation', 'm5c_Regulation', 'm6a_Regulation', 'm7g_Regulation', 'regulation', 'divergene', 'DNB')),
+        #   list(~ifelse(. %in% c('yes', 'up'), 1, 0))
+        # )
+        ###### zhou
+        
+        ###### mxy
         DATA %>%
         mutate_at(
-          vars(c('m1a_Regulation', 'm5c_Regulation', 'm6a_Regulation', 'm7g_Regulation', 'regulation', 'divergene', 'DNB')),
-          list(~ifelse(. %in% c('yes', 'up'), 1, 0))
-        )
+          vars(c('m1a_Regulation', 'm5c_Regulation', 'm6a_Regulation', 'm7g_Regulation', 'regulation')),
+          list(~ recode(., 'up' = 1, 'down' = -1))
+        ) %>%
+        mutate_at(
+          vars(c('divergene', 'DNB')),
+          list(~ recode(., 'yes' = 1, 'no' = 0))
+        ) #%>% 
+        ###### mxy
       # dplyr::select(-c('id', 'name', 'type','exp_name'))
       
       head(data.prt)
@@ -345,18 +363,24 @@ server <- function(input, output, session) {
       # dplyr::select(-c(contains('pval'),
       #                  ensembl_gene_id, .level, annotation))
       
-      mutate_at(c(5:(ncol(res))), rescale2)# %>%
+      #mutate_at(c(5:(ncol(res))), rescale2)# %>%  ##zhou
+      mutate_at(c(5:(ncol(res))), rescale2) %>% ##mxy
+      dplyr::select(-c(non_features[2:4], .level))  ##mxy
+      
       # dplyr::select(-c(ensembl_gene_id, .level, annotation,DNB))
     
     # gather everything before ploting
-    top_genes_tall <- gather(top_genes,
-                             key = 'objective',value = 'value')
-                            #  -c(gene))
+    # top_genes_tall <- gather(top_genes,
+    #                          key = 'objective',value = 'value')
+    #                         #  -c(gene))  ###zhou
+    
+      top_genes_tall <- gather(top_genes,
+                             key = 'objective',value = 'value', -c(id))   ##mxy
     
     # lock levels
     # create ordered factor of levels by genes, which we possibly don't need
-    # top_genes_tall$gene <- factor(top_genes_tall$gene,
-    #                               levels = top_genes$gene)
+    top_genes_tall$id <- factor(top_genes_tall$id,         ##mxy  zhou 注释掉了这句
+                                  levels = top_genes$id)   ##mxy  zhou 注释掉了这句
     
     top_genes_tall$objective <- factor(top_genes_tall$objective,
                                        levels = rev(c(names(DATA[5:length(names(DATA))]))))
@@ -367,10 +391,10 @@ server <- function(input, output, session) {
                     fill = value > 0)) +
       geom_bar(stat = 'identity') +
       # wraps same gene to a row of 5, which we possibly don't need
-      # facet_wrap(~ gene, nrow = 5, scales = 'free_y') +
+      facet_wrap(~ id, nrow = 5, scales = 'free_y') +    ###mxy  zhou 注释掉了这句
       coord_flip() +
       theme(legend.position = 'none') +
-      xlab('genes') +
+      xlab('id') +
       scale_fill_manual(values = c("#8da0cb", "#fc8d62")) +
       theme(legend.position = 'none',
             plot.title = element_text(hjust = 0.5, size = 18),
