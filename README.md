@@ -9,6 +9,12 @@ We have assembled a hybrid dataset that contains DNA, RNA, Protein, literature a
 
 As a result of optimization we find a Pareto surface that contains all the optimal solutions according to the selected objectives and optimization directions. The more objectives are chosen, the larger and more complex the surface can get. Please note, this surface contains solutions with diverse trade-offs so precise ranking within the surface depends on user preferences.
 
+### Usage
+1. install packages for R environment:
+```R
+renv::restore()
+```
+
 ![](docs/image/G1.png)
 
 ![](docs/image/graph1.jpg)
